@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lotto Predictor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background: #f9f9f9;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px 0;
+        }
+        .result {
+            background: #fff;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎲 Lotto Predictor</h1>
+
+    <form method="POST" action="/add_history">
+        <h3>Add Historical Data</h3>
+        <label>Date:</label><br>
+        <input type="text" name="date" placeholder="YYYY-MM-DD"><br>
+        <label>5 Numbers (1–50, comma separated):</label><br>
+        <input type="text" name="numbers"><br>
+        <label>2 Lucky Stars (1–12, comma separated):</label><br>
+        <input type="text" name="stars"><br>
+        <button type="submit">Add</button>
+    </form>
+
+    <form method="POST" action="/predict">
+        <h3>Generate Prediction</h3>
+        <label>Date:</label><br>
+        <input type="text" name="date" placeholder="YYYY-MM-DD"><br>
+        <button type="submit">Generate</button>
+    </form>
+
+    {% if predictions %}
+    <div class="result">
+        <h3>Prediction for {{ predictions.date }}</h3>
+        <p><strong>Numbers:</strong> {{ predictions.numbers }}</p>
+        <p><strong>Stars:</strong> {{ predictions.stars }}</p>
+    </div>
+    {% endif %}
+</body>
+</html>
