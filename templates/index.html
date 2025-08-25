@@ -34,17 +34,21 @@
 <body>
     <h1>🎲 Lotto Predictor</h1>
 
-    <form method="POST" action="/add_history">
-        <h3>Add Historical Data</h3>
-        <label>Date:</label><br>
-        <input type="text" name="date" placeholder="YYYY-MM-DD"><br>
-        <label>5 Numbers (1–50, comma separated):</label><br>
-        <input type="text" name="numbers"><br>
-        <label>2 Lucky Stars (1–12, comma separated):</label><br>
-        <input type="text" name="stars"><br>
-        <button type="submit">Add</button>
-    </form>
 
+
+<h2>Add Historical Record</h2>
+<form action="/add_historical" method="post">
+  <label for="date">Date:</label>
+  <input type="text" id="date" name="date" placeholder="YYYY-MM-DD" required>
+
+  <label for="key">Winning Numbers:</label>
+  <input type="text" id="key" name="key" placeholder="e.g. 1, 5, 12, 20, 33, 42" required>
+
+  <button type="submit">Save Record</button>
+</form>
+
+
+    
     <form method="POST" action="/predict">
         <h3>Generate Prediction</h3>
         <label>Date:</label><br>
@@ -60,4 +64,8 @@
     </div>
     {% endif %}
 </body>
+
+
+
+    
 </html>
