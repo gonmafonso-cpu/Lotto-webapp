@@ -29,26 +29,52 @@
             border: 1px solid #ddd;
             border-radius: 6px;
         }
+        table {
+            background: #fff;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            text-align: center;
+        }
+        th {
+            background: #eee;
+        }
     </style>
 </head>
 <body>
     <h1>🎲 Lotto Predictor</h1>
 
+    <!-- Add Historical Record Form -->
+    <h2>Add Historical Record</h2>
+    <form action="/add_historical" method="post">
+      <label for="date">Date:</label>
+      <input type="text" id="date" name="date" placeholder="YYYY-MM-DD" required>
 
+      <label for="key">Winning Numbers:</label>
+      <input type="text" id="key" name="key" placeholder="e.g. 1, 5, 12, 20, 33|2,7" required>
 
-<h2>Add Historical Record</h2>
-<form action="/add_historical" method="post">
-  <label for="date">Date:</label>
-  <input type="text" id="date" name="date" placeholder="YYYY-MM-DD" required>
+      <button type="submit">Save Record</button>
+    </form>
 
-  <label for="key">Winning Numbers:</label>
-  <input type="text" id="key" name="key" placeholder="e.g. 1, 5, 12, 20, 33, 42" required>
+    <!-- Show Historical Records -->
+    <h2>Historical Records</h2>
+    <table>
+      <tr>
+        <th>Date</th>
+        <th>Winning Numbers</th>
+      </tr>
+      {% for record in records %}
+      <tr>
+        <td>{{ record.date }}</td>
+        <td>{{ record.key }}</td>
+      </tr>
+      {% endfor %}
+    </table>
 
-  <button type="submit">Save Record</button>
-</form>
-
-
-    
+    <!-- Prediction Form -->
     <form method="POST" action="/predict">
         <h3>Generate Prediction</h3>
         <label>Date:</label><br>
@@ -64,8 +90,4 @@
     </div>
     {% endif %}
 </body>
-
-
-
-    
 </html>
