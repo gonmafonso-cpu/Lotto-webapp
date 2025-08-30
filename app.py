@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, abort
+from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import random
@@ -35,8 +35,9 @@ def parse_key(key_str: str):
     Parse a key like '1,5,12,20,33|2,7' into (numbers_list, stars_list).
     Validates counts, ranges, and uniqueness.
     """
+    key_str = (key_str or "").strip()
     if "|" not in key_str:
-        raise ValueError("Key must contain a '|' separating main numbers and stars, e.g. 1,5,12,20,33|2,7")
+        raise ValueError("Key must contain a '|' between main numbers and stars. e.g. 1,5,12,20,33|2,7")
 
     left, right = key_str.split("|", 1)
     nums = [int(x) for x in left.replace(" ", "").split(",") if x != ""]
@@ -47,26 +48,21 @@ def parse_key(key_str: str):
     if len(set(nums)) != 5:
         raise ValueError("Main numbers must be unique.")
     if not all(1 <= n <= 50 for n in nums):
-        raise ValueError("Main numbers must be in the range 1–50.")
+        raise ValueError("Main numbers must be in 1–50.")
 
     if len(stars) != 2:
         raise ValueError("Stars must contain exactly 2 integers.")
     if len(set(stars)) != 2:
         raise ValueError("Stars must be unique.")
     if not all(1 <= s <= 12 for s in stars):
-        raise ValueError("Stars must be in the range 1–12.")
+        raise ValueError("Stars must be in 1–12.")
 
-    # Store sorted for consistency
-    nums = sorted(nums)
-    stars = sorted(stars)
-    return nums, stars
+    return sorted(nums), sorted(stars)
 
 def format_key(nums, stars):
-    """Format back to 'n1,n2,n3,n4,n5|s1,s2' (no spaces)."""
     return f"{','.join(map(str, nums))}|{','.join(map(str, stars))}"
 
 def generate_prediction():
-    """Simple random generator (5 from 1–50, 2 from 1–12)."""
     nums = sorted(random.sample(range(1, 51), 5))
     stars = sorted(random.sample(range(1, 13), 2))
     return nums, stars
@@ -75,26 +71,127 @@ def generate_prediction():
 
 @app.route("/")
 def index():
-    # Build records for the table in the template: [{date: 'YYYY-MM-DD', key: '...|...'}, ...]
+    # Build records for table
     rows = HistoricalData.query.order_by(HistoricalData.date.desc()).all()
     records = []
     for r in rows:
-        key = format_key([int(x) for x in r.numbers.split(",")], [int(x) for x in r.stars.split(",")])
+        key = format_key([int(x) for x in r.numbers.split(",")],
+                         [int(x) for x in r.stars.split(",")])
         records.append({"date": r.date.isoformat(), "key": key})
 
     # Show latest prediction (if any)
-    latest_pred = Prediction.query.order_by(Prediction.id.desc()).first()
+    latest = Prediction.query.order_by(Prediction.id.desc()).first()
     predictions = None
-    if latest_pred:
+    if latest:
         predictions = {
-            "date": latest_pred.date.isoformat(),
-            "numbers": latest_pred.predicted_numbers,
-            "stars": latest_pred.predicted_stars
+            "date": latest.date.isoformat(),
+            "numbers": latest.predicted_numbers,
+            "stars": latest.predicted_stars
         }
 
     return render_template("index.html", records=records, predictions=predictions)
 
 @app.route("/add_historical", methods=["POST"])
 def add_historical():
-    date_str = request.form.get("date", "").strip()
-    key_str = request.form.get("key", "").strip
+    # Always return something at the end of each branch
+    date_str = (request.form.get("date") or "").strip()
+    key_str = (request.form.get("key") or "").strip()
+
+    if not date_str or not key_str:
+        return "Bad Request: missing 'date' or 'key'", 400
+
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return "Bad Request: date must be YYYY-MM-DD", 400
+
+    try:
+        nums, stars = parse_key(key_str)
+    except ValueError as e:
+        return f"Bad Request: {e}", 400
+
+    existing = HistoricalData.query.filter_by(date=d).first()
+    if existing:
+        # Update existing (or return 400 if you prefer to prevent overwrites)
+        existing.numbers = ",".join(map(str, nums))
+        existing.stars = ",".join(map(str, stars))
+    else:
+        db.session.add(HistoricalData(
+            date=d,
+            numbers=",".join(map(str, nums)),
+            stars=",".join(map(str, stars))
+        ))
+
+    db.session.commit()
+    return redirect(url_for("index"))
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    date_str = (request.form.get("date") or "").strip()
+    if not date_str:
+        return "Bad Request: missing 'date'", 400
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return "Bad Request: date must be YYYY-MM-DD", 400
+
+    nums, stars = generate_prediction()
+
+    pred = Prediction.query.filter_by(date=d).first()
+    if pred:
+        pred.predicted_numbers = ",".join(map(str, nums))
+        pred.predicted_stars = ",".join(map(str, stars))
+    else:
+        db.session.add(Prediction(
+            date=d,
+            predicted_numbers=",".join(map(str, nums)),
+            predicted_stars=",".join(map(str, stars))
+        ))
+
+    db.session.commit()
+
+    # Re-render index with new prediction visible
+    rows = HistoricalData.query.order_by(HistoricalData.date.desc()).all()
+    records = []
+    for r in rows:
+        key = format_key([int(x) for x in r.numbers.split(",")],
+                         [int(x) for x in r.stars.split(",")])
+        records.append({"date": r.date.isoformat(), "key": key})
+
+    predictions = {
+        "date": d.isoformat(),
+        "numbers": ",".join(map(str, nums)),
+        "stars": ",".join(map(str, stars))
+    }
+    return render_template("index.html", records=records, predictions=predictions)
+
+@app.route("/update_result", methods=["POST"])
+def update_result():
+    date_str = (request.form.get("date") or "").strip()
+    numbers = (request.form.get("numbers") or "").strip()
+    stars = (request.form.get("stars") or "").strip()
+
+    if not date_str or not numbers or not stars:
+        return "Bad Request: missing fields", 400
+
+    try:
+        d = datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return "Bad Request: date must be YYYY-MM-DD", 400
+
+    pred = Prediction.query.filter_by(date=d).first()
+    if not pred:
+        return "No prediction exists for that date.", 404
+
+    pred.actual_numbers = numbers
+    pred.actual_stars = stars
+
+    num_matches = len(set(pred.predicted_numbers.split(",")) & set(numbers.split(",")))
+    star_matches = len(set(pred.predicted_stars.split(",")) & set(stars.split(",")))
+    pred.score = f"{num_matches} numbers, {star_matches} stars"
+
+    db.session.commit()
+    return redirect(url_for("index"))
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=10000, debug=True)
