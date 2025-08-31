@@ -2,9 +2,17 @@ from flask import Flask, render_template, request, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import random
+import os
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///lotto.db'
+
+# Use Postgres if available, fallback to SQLite locally
+db_url = os.environ.get("DATABASE_URL", "sqlite:///lotto.db")
+# Fix Render's postgres:// to postgresql:// for SQLAlchemy compatibility
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -33,15 +41,14 @@ with app.app_context():
 def parse_key(key_str: str):
     """
     Parse a key like '1,5,12,20,33;2,7' into (numbers_list, stars_list).
-    Validates counts, ranges, and uniqueness.
     """
     key_str = (key_str or "").strip()
     if ";" not in key_str:
         raise ValueError("Key must contain a ';' between main numbers and stars. e.g. 1,5,12,20,33;2,7")
 
     left, right = key_str.split(";", 1)
-    nums = [int(x) for x in left.replace(" ", "").split(",") if x != ""]
-    stars = [int(x) for x in right.replace(" ", "").split(",") if x != ""]
+    nums = [int(x) for x in left.replace(" ", "").split(",") if x]
+    stars = [int(x) for x in right.replace(" ", "").split(",") if x]
 
     if len(nums) != 5:
         raise ValueError("Main numbers must contain exactly 5 integers.")
@@ -71,7 +78,6 @@ def generate_prediction():
 
 @app.route("/")
 def index():
-    # Build records for table
     rows = HistoricalData.query.order_by(HistoricalData.date.desc()).all()
     records = []
     for r in rows:
@@ -79,7 +85,6 @@ def index():
                          [int(x) for x in r.stars.split(",")])
         records.append({"date": r.date.isoformat(), "key": key})
 
-    # Show latest prediction (if any)
     latest = Prediction.query.order_by(Prediction.id.desc()).first()
     predictions = None
     if latest:
@@ -91,8 +96,11 @@ def index():
 
     return render_template("index.html", records=records, predictions=predictions)
 
-@app.route("/add_historical", methods=["POST"])
+@app.route("/add_historical", methods=["GET", "POST"])
 def add_historical():
+    if request.method == "GET":
+        return redirect(url_for("index"))
+
     date_str = (request.form.get("date") or "").strip()
     key_str = (request.form.get("key") or "").strip()
 
@@ -112,7 +120,7 @@ def add_historical():
     existing = HistoricalData.query.filter_by(date=d).first()
     if existing:
         existing.numbers = ",".join(map(str, nums))
-        existing.stars = ",".join(map(str, stars))
+        existing.stars   = ",".join(map(str, stars))
     else:
         db.session.add(HistoricalData(
             date=d,
@@ -148,7 +156,6 @@ def predict():
 
     db.session.commit()
 
-    # Re-render index with new prediction visible
     rows = HistoricalData.query.order_by(HistoricalData.date.desc()).all()
     records = []
     for r in rows:
@@ -165,6 +172,4 @@ def predict():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000, debug=True)
-
-
 
