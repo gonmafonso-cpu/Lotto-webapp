@@ -1,94 +1,43 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Lotto Predictor</title>
+    <title>Lotto Predictor (CSV Version)</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 30px;
-            background: #f9f9f9;
-        }
-        h1 {
-            color: #333;
-        }
-        form {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-        }
-        input, button {
-            padding: 8px;
-            margin: 5px 0;
-        }
-        .result {
-            background: #fff;
-            padding: 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-        }
-        table {
-            background: #fff;
-            border-collapse: collapse;
-            margin-top: 15px;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            text-align: center;
-        }
-        th {
-            background: #eee;
-        }
+        body { font-family: Arial, sans-serif; margin: 30px; background: #f9f9f9; }
+        h1 { color: #333; }
+        form { margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+        input, button { padding: 8px; margin: 5px 0; }
+        .result { background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 6px; }
+        table.data { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        table.data th, table.data td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     </style>
 </head>
 <body>
-    <h1>🎲 Lotto Predictor</h1>
+    <h1>🎲 Lotto Predictor (CSV Version)</h1>
 
-    <!-- Add Historical Record Form -->
-    <h2>Add Historical Record</h2>
-    <form action="/add_historical" method="post">
-      <label for="date">Date:</label>
-      <input type="text" id="date" name="date" placeholder="YYYY-MM-DD" required>
-
-      <label for="key">Winning Numbers:</label>
-      <input type="text" id="key" name="key" placeholder="e.g. 1,5,12,20,33;2,7" required>
-
-      <button type="submit">Save Record</button>
+    <h2>Upload CSV</h2>
+    <form action="/" method="POST" enctype="multipart/form-data">
+        <input type="file" name="csv_file" accept=".csv">
+        <button type="submit">Upload</button>
     </form>
 
-    <!-- Show Historical Records -->
-    <h2>Historical Records</h2>
-    <table>
-      <tr>
-        <th>Date</th>
-        <th>Winning Numbers</th>
-      </tr>
-      {% for record in records %}
-      <tr>
-        <td>{{ record.date }}</td>
-        <td>{{ record.key }}</td>
-      </tr>
-      {% endfor %}
-    </table>
-
-    <!-- Prediction Form -->
-    <form method="POST" action="/predict">
-        <h3>Generate Prediction</h3>
-        <label>Date:</label><br>
-        <input type="text" name="date" placeholder="YYYY-MM-DD"><br>
+    <h2>Generate Prediction</h2>
+    <form action="/" method="POST">
+        <input type="hidden" name="predict" value="1">
         <button type="submit">Generate</button>
     </form>
 
-    {% if predictions %}
+    {% if prediction %}
     <div class="result">
-        <h3>Prediction for {{ predictions.date }}</h3>
-        <p><strong>Numbers:</strong> {{ predictions.numbers }}</p>
-        <p><strong>Stars:</strong> {{ predictions.stars }}</p>
+        <h3>New Prediction</h3>
+        <p><strong>{{ prediction }}</strong></p>
+        <a href="/download">Download Updated CSV</a>
     </div>
     {% endif %}
+
+    <h2>Current Data</h2>
+    {{ tables|safe }}
 </body>
 </html>
 
