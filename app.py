@@ -1,94 +1,104 @@
-from flask import Flask, render_template, request, redirect, url_for, send_file
+from flask import Flask, render_template, request
 import pandas as pd
 import random
-import os
-from datetime import datetime
+from collections import defaultdict
 
 app = Flask(__name__)
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-CSV_FILE = os.path.join(UPLOAD_FOLDER, "lotto.csv")
 
+CSV_FILE = "lotto_data.csv"
 
-def parse_key(key):
-    """Parse key string '1;2;3;4;5/6;7' -> (numbers, stars)."""
-    if not key or pd.isna(key):
-        return [], []
+# -----------------------------
+# Load historical CSV
+# -----------------------------
+def load_data():
     try:
-        numbers, stars = key.split("/")
-        nums = [int(x) for x in numbers.split(";")]
-        stars = [int(x) for x in stars.split(";")]
-        return nums, stars
-    except Exception:
-        return [], []
-
-
-def generate_prediction(df):
-    """Generate a prediction based on frequency trends in CSV."""
-    number_counts = {i: 0 for i in range(1, 51)}
-    star_counts = {i: 0 for i in range(1, 13)}
-
-    for _, row in df.iterrows():
-        actual_nums, actual_stars = parse_key(row["Actual"])
-        pred_nums, pred_stars = parse_key(row.get("Prediction", ""))
-
-        for n in actual_nums + pred_nums:
-            if n in number_counts:
-                number_counts[n] += 1
-        for s in actual_stars + pred_stars:
-            if s in star_counts:
-                star_counts[s] += 1
-
-    # Pick most frequent numbers/stars (weighted random choice)
-    nums = sorted(random.sample(
-        population=list(number_counts.keys()),
-        k=5
-    ), key=lambda x: number_counts[x], reverse=True)
-
-    stars = sorted(random.sample(
-        population=list(star_counts.keys()),
-        k=2
-    ), key=lambda x: star_counts[x], reverse=True)
-
-    return nums, stars
-
-
-@app.route("/", methods=["GET", "POST"])
-def index():
-    df = pd.DataFrame()
-    prediction = None
-
-    if os.path.exists(CSV_FILE):
         df = pd.read_csv(CSV_FILE)
+        df = df.fillna("")
+        return df
+    except FileNotFoundError:
+        return pd.DataFrame(columns=["Date", "Actual", "Prediction"])
 
-    if request.method == "POST":
-        if "csv_file" in request.files:
-            file = request.files["csv_file"]
-            if file.filename.endswith(".csv"):
-                file.save(CSV_FILE)
-                return redirect(url_for("index"))
+# -----------------------------
+# Probability-based prediction
+# -----------------------------
+def generate_prediction(df):
+    number_counts = defaultdict(int)
+    star_counts = defaultdict(int)
+    co_occurrence = defaultdict(lambda: defaultdict(int))
 
-        if "predict" in request.form:
-            if not df.empty:
-                nums, stars = generate_prediction(df)
-                today = datetime.today().strftime("%Y-%m-%d")
-                key = f"{';'.join(map(str, nums))}/{';'.join(map(str, stars))}"
-                new_row = {"Date": today, "Actual": "", "Prediction": key}
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-                df.to_csv(CSV_FILE, index=False)
-                prediction = key
+    # Count frequencies & co-occurrences
+    for _, row in df.iterrows():
+        if row["Actual"]:
+            nums_part, stars_part = row["Actual"].split("/")
+            nums = [int(x) for x in nums_part.split(";")]
+            stars = [int(x) for x in stars_part.split(";")]
 
-    return render_template("index.html", tables=df.to_html(classes="data"), prediction=prediction)
+            for n in nums:
+                number_counts[n] += 2
+            for s in stars:
+                star_counts[s] += 2
 
+            for i in range(len(nums)):
+                for j in range(i + 1, len(nums)):
+                    co_occurrence[nums[i]][nums[j]] += 1
+                    co_occurrence[nums[j]][nums[i]] += 1
 
-@app.route("/download")
-def download():
-    if os.path.exists(CSV_FILE):
-        return send_file(CSV_FILE, as_attachment=True)
-    return "No CSV available", 404
+        if row["Prediction"]:
+            try:
+                nums_part, stars_part = row["Prediction"].split("/")
+                nums = [int(x) for x in nums_part.split(";")]
+                stars = [int(x) for x in stars_part.split(";")]
 
+                for n in nums:
+                    number_counts[n] += 1
+                for s in stars:
+                    star_counts[s] += 1
+            except:
+                pass
+
+    # Normalize counts → probabilities
+    def normalize(d, max_val):
+        total = sum(d.values()) + max_val  # smoothing
+        return {i: (d[i] + 1) / total for i in range(1, max_val + 1)}
+
+    number_probs = normalize(number_counts, 50)
+    star_probs = normalize(star_counts, 12)
+
+    # Sample numbers with co-occurrence bias
+    chosen_numbers = []
+    while len(chosen_numbers) < 5:
+        weights = []
+        for i in range(1, 51):
+            if i in chosen_numbers:
+                weights.append(0)
+            else:
+                base = number_probs[i]
+                bonus = sum(co_occurrence[i][n] for n in chosen_numbers)
+                weights.append(base + bonus * 0.05)
+        chosen = random.choices(range(1, 51), weights=weights, k=1)[0]
+        chosen_numbers.append(chosen)
+
+    # Sample stars
+    stars = random.choices(range(1, 13), weights=[star_probs[i] for i in range(1, 13)], k=2)
+
+    return sorted(chosen_numbers), sorted(stars)
+
+# -----------------------------
+# Routes
+# -----------------------------
+@app.route("/")
+def index():
+    df = load_data()
+    return render_template("index.html", records=df.to_dict(orient="records"))
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    df = load_data()
+    nums, stars = generate_prediction(df)
+    return render_template("index.html", 
+                           records=df.to_dict(orient="records"),
+                           prediction={"numbers": nums, "stars": stars})
 
 if __name__ == "__main__":
     app.run(debug=True)
-
 
