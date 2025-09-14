@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Lotto Predictor (CSV-only)</title>
+  <title>Lotto Predictor (probability • CSV-only)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { font-family: Arial, sans-serif; margin: 30px; background: #f9f9f9; }
@@ -12,24 +12,23 @@
     th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
     th { background: #eee; }
     .result { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 14px; margin-top: 16px; }
+    .note { color: #666; font-size: 0.9em; margin-top: 10px; }
   </style>
 </head>
 <body>
-  <h1>🎲 Lotto Predictor (CSV-only)</h1>
+  <h1>🎲 Lotto Predictor (CSV • probability)</h1>
 
-  <!-- Upload CSV -->
   <form action="/upload" method="POST" enctype="multipart/form-data">
-    <label>Upload CSV (Date,Actual,Prediction):</label><br>
+    <label>Upload CSV (headers: Date,Actual,Prediction | key: n;n;n;n;n/s;s)</label><br>
     <input type="file" name="csv_file" accept=".csv" required>
     <br><button type="submit">Upload</button>
+    <div class="note">Tip: header typo “Predictiom” is accepted too.</div>
   </form>
 
-  <!-- Generate Prediction -->
   <form action="/predict" method="POST">
     <button type="submit">Generate New Prediction</button>
   </form>
 
-  <!-- Download current CSV -->
   <form action="/download" method="GET">
     <button type="submit">Download Current CSV</button>
   </form>
@@ -54,4 +53,5 @@
   </table>
 </body>
 </html>
+
 
