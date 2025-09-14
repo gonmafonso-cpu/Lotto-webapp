@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Lotto Predictor (probability • CSV-only)</title>
+  <title>Lotto Predictor (CSV • probability)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
     body { font-family: Arial, sans-serif; margin: 30px; background: #f9f9f9; }
@@ -19,10 +19,10 @@
   <h1>🎲 Lotto Predictor (CSV • probability)</h1>
 
   <form action="/upload" method="POST" enctype="multipart/form-data">
-    <label>Upload CSV (headers: Date,Actual,Prediction | key: n;n;n;n;n/s;s)</label><br>
+    <label>Upload CSV (headers: Date,Actual,Prediction | key format: n;n;n;n;n/s;s)</label><br>
     <input type="file" name="csv_file" accept=".csv" required>
     <br><button type="submit">Upload</button>
-    <div class="note">Tip: header typo “Predictiom” is accepted too.</div>
+    <div class="note">Tip: Comma or semicolon separators are both OK. Header typo “Predictiom” is accepted.</div>
   </form>
 
   <form action="/predict" method="POST">
@@ -40,7 +40,7 @@
   </div>
   {% endif %}
 
-  <h2>Current Data</h2>
+  <h2>Current Data ({{ row_count }} rows)</h2>
   <table>
     <tr><th>Date</th><th>Actual</th><th>Prediction</th></tr>
     {% for r in rows %}
@@ -53,5 +53,3 @@
   </table>
 </body>
 </html>
-
-
