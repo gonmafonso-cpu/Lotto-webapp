@@ -1,44 +1,57 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Lotto Predictor (CSV Version)</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 30px; background: #f9f9f9; }
-        h1 { color: #333; }
-        form { margin-bottom: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 6px; }
-        input, button { padding: 8px; margin: 5px 0; }
-        .result { background: #fff; padding: 15px; border: 1px solid #ddd; border-radius: 6px; }
-        table.data { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        table.data th, table.data td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-    </style>
+  <title>Lotto Predictor (CSV-only)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: Arial, sans-serif; margin: 30px; background: #f9f9f9; }
+    h1 { color: #333; }
+    form { margin-bottom: 16px; padding: 14px; background: #fff; border: 1px solid #ddd; border-radius: 6px; }
+    input, button { padding: 8px; margin: 5px 0; }
+    table { width: 100%; border-collapse: collapse; background: #fff; margin-top: 16px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+    th { background: #eee; }
+    .result { background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 14px; margin-top: 16px; }
+  </style>
 </head>
 <body>
-    <h1>🎲 Lotto Predictor (CSV Version)</h1>
+  <h1>🎲 Lotto Predictor (CSV-only)</h1>
 
-    <h2>Upload CSV</h2>
-    <form action="/" method="POST" enctype="multipart/form-data">
-        <input type="file" name="csv_file" accept=".csv">
-        <button type="submit">Upload</button>
-    </form>
+  <!-- Upload CSV -->
+  <form action="/upload" method="POST" enctype="multipart/form-data">
+    <label>Upload CSV (Date,Actual,Prediction):</label><br>
+    <input type="file" name="csv_file" accept=".csv" required>
+    <br><button type="submit">Upload</button>
+  </form>
 
-    <h2>Generate Prediction</h2>
-    <form action="/" method="POST">
-        <input type="hidden" name="predict" value="1">
-        <button type="submit">Generate</button>
-    </form>
+  <!-- Generate Prediction -->
+  <form action="/predict" method="POST">
+    <button type="submit">Generate New Prediction</button>
+  </form>
 
-    {% if prediction %}
-    <div class="result">
-        <h3>New Prediction</h3>
-        <p><strong>{{ prediction }}</strong></p>
-        <a href="/download">Download Updated CSV</a>
-    </div>
-    {% endif %}
+  <!-- Download current CSV -->
+  <form action="/download" method="GET">
+    <button type="submit">Download Current CSV</button>
+  </form>
 
-    <h2>Current Data</h2>
-    {{ tables|safe }}
+  {% if new_prediction %}
+  <div class="result">
+    <h3>New Prediction</h3>
+    <p><strong>{{ new_prediction }}</strong></p>
+  </div>
+  {% endif %}
+
+  <h2>Current Data</h2>
+  <table>
+    <tr><th>Date</th><th>Actual</th><th>Prediction</th></tr>
+    {% for r in rows %}
+      <tr>
+        <td>{{ r.Date }}</td>
+        <td>{{ r.Actual }}</td>
+        <td>{{ r.Prediction }}</td>
+      </tr>
+    {% endfor %}
+  </table>
 </body>
 </html>
-
 
